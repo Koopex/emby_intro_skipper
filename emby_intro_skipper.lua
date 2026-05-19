@@ -1,10 +1,10 @@
 -- https://github.com/Koopex/emby_intro_skipper
 
-local o = {--------------------===[[ 脚本配置 ]]===--------------------
+local o = {-------------------------------===[[ 脚本配置 ]]===-------------------------------
     skip_key = 'PGDWN',  -- 跳过片头/片尾的按键, 默认是 PageDown
-    from_mediainfo = false,  -- 播放本地视频时尝试从神医助手生成的 mediainfo.json 获取章节信息
+    from_mediainfo = true,  -- 播放本地视频时尝试从神医助手生成的 mediainfo.json 获取章节信息
     config_path = [[~~home/_cache/emby_intro_skipper.json]]
-}          --------------------===[[ 配置结束 ]]===--------------------
+}          -------------------------------===[[ 配置结束 ]]===-------------------------------
 
 local mp = require 'mp'
 local utils = require 'mp.utils'
@@ -64,14 +64,12 @@ local function on_chapter_change(name, value)
 
     -- 如果当前章节在片尾范围内，直接跳到片尾结束
     local function skip_credits()
-        mp.set_property_native("chapter", key_indices.credits_end)
+        mp. commandv('no-osd', 'add', 'chapter', '1')
         mp.osd_message("已跳过片尾")
     end
 
     if key_indices.credits_start
-    and key_indices.credits_end
-    and value >= key_indices.credits_start
-    and value < key_indices.credits_end then
+    and value == key_indices.credits_start then
         if mode == 'key' then
             osd.data = "{\\an9}按 " .. o.skip_key .. " 跳过片尾"
             osd:update()
@@ -106,9 +104,6 @@ local function inject_chapters(emby_chapters)
         elseif ch.MarkerType == "CreditsStart" then
             title = "片尾"
             key_indices.credits_start = i - 1
-        elseif ch.MarkerType == "CreditsEnd" then
-            title = "彩蛋"
-            key_indices.credits_end = i - 1
         end
 
         table.insert(mpv_chapters, {
@@ -204,7 +199,7 @@ local function on_file_loaded()
     if string.find(path, "/emby/videos/.+/original") then
 		fetch_chapters_from_emby(path)
         return
-	elseif o.from_mediainfo then
+	elseif o.from_mediainfo and not path:match("^(http|rtmp)") then
 		fetch_chapters_from_mediainfo(path)
     end
 end
